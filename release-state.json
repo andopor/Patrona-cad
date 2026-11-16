@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_q4LJDXtYO0q9zYtwtEEenCE4wlrg",
+  "alias": "patrona-cad.vercel.app",
+  "version": "0.12.0",
+  "buildId": "0.12.0-bb0c5696fd60",
+  "productionDeploymentId": "dpl_GhSy4aEAD2vzQqEKQnaRBFUFZHQc",
+  "url": "https://patrona-e5jcsdtc6-andopors-projects.vercel.app/",
+  "previewDeploymentId": "dpl_9QbKxL1tPFfKAmct1Pb2F83wCrKr",
+  "previewURL": "https://patrona-4kz2etbjg-andopors-projects.vercel.app/",
+  "previousProductionDeploymentId": "dpl_2A5ijSsTGDWh4cE9bywV5rj2EDbA",
+  "sourceHash": "bb0c5696fd60177e1c4d2977b028125ca449e32d1ea9ac5705fd80965cf26ec4",
+  "checkedAt": "2026-11-16T23:15:53.495604+01:00",
+  "previousProductionURL": "https://patrona-9s0ebbmou-andopors-projects.vercel.app/",
+  "githubRepository": "andopor/Patrona-cad",
+  "githubSourceCommit": "72fee1171f70b2163cff7d9183188df6e9e79819"
+}
