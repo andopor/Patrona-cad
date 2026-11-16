@@ -1,2 +1,2 @@
 import {defineConfig} from 'vite';
-export default defineConfig({optimizeDeps:{entries:['index.html']}});
+export default defineConfig({worker:{format:'es'},optimizeDeps:{entries:['index.html']}});

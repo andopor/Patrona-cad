@@ -1,0 +1,32 @@
+import {useRef,useState} from 'react';
+import type {Project,Layer} from './types';
+import {clone,uid,layerFor} from './engine';
+export default function Layers({project,onChange,onNotice,onFit}:{project:Project;onChange:(p:Project)=>void;onNotice:(s:string)=>void;onFit:()=>void}){
+ const latest=useRef(project);latest.current=project;
+ const file=useRef<HTMLInputElement>(null),[busy,setBusy]=useState(false);
+ const active=project.layers.find(l=>l.id===project.activeLayerId);
+ const edit=(fn:(p:Project)=>void)=>{const p=clone(latest.current);fn(p);onChange(p);};
+ const update=(l:Layer,values:Partial<Layer>)=>edit(p=>Object.assign(p.layers.find(x=>x.id===l.id)!,values));
+ const addDrawing=()=>{if(project.layers.length>=30){onNotice('Puedes tener hasta 30 capas.');return;}edit(p=>{const id=uid();p.layers.push({id,name:`Trazado ${p.layers.filter(x=>x.type==='drawing').length+1}`,type:'drawing',visible:true,locked:false,opacity:1});p.activeLayerId=id;});};
+ const importImage=async(f:File)=>{
+  if(project.layers.length>=30){onNotice('Puedes tener hasta 30 capas.');return;}
+  if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>20_000_000){onNotice('Elige una imagen PNG, JPG o WebP de hasta 20 MB.');return;}
+  setBusy(true);let url='';try{
+   url=URL.createObjectURL(f);const image=new Image();image.src=url;await image.decode();
+   if(!image.naturalWidth||!image.naturalHeight||image.naturalWidth*image.naturalHeight>60_000_000)throw Error('La imagen es demasiado grande.');
+   const ratio=Math.min(1,1800/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.round(image.naturalWidth*ratio);canvas.height=Math.round(image.naturalHeight*ratio);
+   canvas.getContext('2d')!.drawImage(image,0,0,canvas.width,canvas.height);const src=canvas.toDataURL('image/webp',.88);
+   if(src.length+project.layers.reduce((sum,l)=>sum+(l.image?.src.length||0),0)>12_000_000)throw Error('El proyecto admite hasta 12 MB de imágenes.');
+   edit(p=>{const id=uid();p.activeLayerId=id;p.layers.unshift({id,name:f.name.slice(0,100),type:'image',visible:true,locked:false,opacity:.55,image:{src,x:0,y:0,width:60,height:60*canvas.height/canvas.width}});});onFit();onNotice('Imagen añadida al fondo. Ajusta su ancho en cm y bloquéala antes de calcar.');
+  }catch(e){onNotice(`No se ha cargado la imagen: ${(e as Error).message}`);}finally{if(url)URL.revokeObjectURL(url);setBusy(false);}
+ };
+ return <section className="layers-panel" id="layersPanel"><h2>Capas del proyecto</h2><p className="micro">La primera de la lista está arriba. Selecciona una capa de trazado para dibujar sobre la imagen.</p><div className="row"><button id="addLayer" onClick={addDrawing}>＋ Capa</button><button id="addImage" disabled={busy} onClick={()=>file.current?.click()}>{busy?'Cargando…':'＋ Imagen de fondo'}</button></div><input id="backgroundFile" ref={file} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f)void importImage(f);e.target.value='';}}/>
+ <div className="layer-list">{[...project.layers].reverse().map(l=><div key={l.id} className={`layer-card ${l.id===project.activeLayerId?'active-layer':''}`} data-layer-card={l.id}>
+ <button className="layer-select" onClick={()=>edit(p=>p.activeLayerId=l.id)}>{l.type==='image'?'▧':'✎'} {l.name}<small>{l.type==='image'?'Imagen de referencia':'Capa de dibujo'}{l.id===project.activeLayerId?' · activa':''}</small></button>
+ <div className="layer-actions"><button aria-label={`${l.visible?'Ocultar':'Mostrar'} capa ${l.name}`} onClick={()=>update(l,{visible:!l.visible})}>{l.visible?'◉':'○'}</button><button aria-label={`${l.locked?'Desbloquear':'Bloquear'} capa ${l.name}`} onClick={()=>update(l,{locked:!l.locked})}>{l.locked?'🔒':'◇'}</button>{(['up','down'] as const).map(dir=><button key={dir} aria-label={`${dir==='up'?'Subir':'Bajar'} capa ${l.name}`} disabled={dir==='up'?project.layers.at(-1)?.id===l.id:project.layers[0].id===l.id} onClick={()=>edit(p=>{const i=p.layers.findIndex(x=>x.id===l.id),j=i+(dir==='up'?1:-1);[p.layers[i],p.layers[j]]=[p.layers[j],p.layers[i]];})}>{dir==='up'?'↑':'↓'}</button>)}</div></div>)}</div>
+ {active&&<div className="layer-settings"><label className="prop-label">Nombre de capa<input className="full-input" aria-label="Nombre de capa" value={active.name} maxLength={100} onChange={e=>update(active,{name:e.target.value})}/></label><label className="prop-label">Opacidad · {Math.round(active.opacity*100)}%<input id="layerOpacity" type="range" min="0" max="100" value={active.opacity*100} onChange={e=>update(active,{opacity:Number(e.target.value)/100})}/></label>
+ {active.image&&<><p className="micro">Seleccionar: arrastra la imagen para colocarla. Ancho y alto conservan la proporción. Para escala real, mide una distancia conocida en la foto y ajusta el ancho.</p>{(['x','y','width','height'] as const).map(k=><label className="prop" key={k}><span>{{x:'Posición X',y:'Posición Y',width:'Ancho',height:'Alto'}[k]} · cm</span><input aria-label={`Imagen ${k}`} type="number" step=".5" min={k==='x'||k==='y'?-1000:.1} max="1000" disabled={active.locked} value={active.image![k]} onChange={e=>{const n=Number(e.target.value);if(!Number.isFinite(n)||Math.abs(n)>1000||((k==='width'||k==='height')&&n<.1))return;const i={...active.image!};if(k==='width')i.height=n*i.height/i.width;if(k==='height')i.width=n*i.width/i.height;i[k]=n;update(active,{image:i});}}/></label>)}</>}
+ {active.type==='drawing'&&<p className="micro">Las líneas, curvas, cotas y guías nuevas se guardan en esta capa. Mueve las piezas aquí desde sus propiedades.</p>}
+ <button id="deleteLayer" className="wide" disabled={project.layers.length===1||active.locked} onClick={()=>{if(project.pieces.some(p=>layerFor(project,p).id===active.id)||project.annotations.some(a=>layerFor(project,a).id===active.id)||project.guides.some(g=>layerFor(project,g).id===active.id)){onNotice('La capa contiene trazos o piezas. Vacíala o muévelos antes de eliminarla.');return;}edit(p=>{p.layers=p.layers.filter(l=>l.id!==active.id);p.activeLayerId=p.layers.find(l=>l.type==='drawing')?.id||p.layers[0].id;});}}>{active.type==='image'?'Eliminar imagen':'Eliminar capa vacía'}</button></div>}
+ <p className="micro">Las imágenes se guardan en el JSON. SVG y PDF incluyen el trazado visible, sin las fotografías de referencia. Patrón pendiente de pruebas físicas.</p></section>;
+}

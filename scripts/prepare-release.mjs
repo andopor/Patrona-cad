@@ -1,0 +1,9 @@
+import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';
+const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(dir,e.name)):[path.join(dir,e.name)]).sort();}
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8')),base=JSON.parse(fs.readFileSync('release-state.json','utf8'));
+const files=[...walk('src'),...walk('vendor'),...walk('supabase'),'package.json','package-lock.json','tsconfig.json','vite.config.ts','style.css','index.html','vercel.json',...walk('public').filter(f=>f!=='public/version.json')];
+const sourceHashes=Object.fromEntries(files.map(f=>[f,hash(f)])),sourceHash=crypto.createHash('sha256').update(JSON.stringify(sourceHashes)).digest('hex');
+const identity={version:pkg.version,buildId:`${pkg.version}-${sourceHash.slice(0,12)}`,sourceHash,projectId:base.projectId,previousProduction:base.productionDeploymentId,features:['vector-editor','layers-images','library-14','svg-dxf-import','personal-models','seam-allowance-notches','svg-pdf-dxf-export','xy-rulers-guides','stroke-smoothing','constrained-regular-shapes','magnetic-snap','sewing-drafting-aids','delete-selection','touch-pan-zoom','canvas-fullscreen','movable-minimized-help','fullscreen-panels','configurable-magnet','aid-rotation-gestures','exact-edge-follow','pencil-pressure-tilt','project-gallery','indexeddb-autosave','persistent-project-versions','project-trash','project-conflict-copies','private-cloud-backups','cloud-history-restore','cloud-auto-backup','project-gallery-search-sort','editor-shortcut-isolation']};
+fs.mkdirSync('test-results',{recursive:true});
+fs.writeFileSync('public/version.json',JSON.stringify(identity,null,2)+'\n');fs.writeFileSync('test-results/release-manifest.json',JSON.stringify({identity,sourceHashes},null,2)+'\n');console.log(identity.buildId);

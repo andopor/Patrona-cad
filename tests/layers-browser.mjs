@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import {chromium} from '/Users/andopor/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+const saved=()=>page.waitForTimeout(800),read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('patrona-cad.project.v2'))),tap=id=>page.locator('#'+id).click();
+const position=(x,y)=>page.evaluate(({x,y})=>{const p=new DOMPoint(x,y).matrixTransform(document.querySelector('#drawing').getScreenCTM());return {x:p.x,y:p.y};},{x,y});
+const click=async(x,y)=>{const p=await position(x,y);await page.mouse.click(p.x,p.y);};
+try{
+await page.goto(process.env.PATRONA_TEST_URL||'http://127.0.0.1:4183');await saved();await tap('backgroundLayers');
+const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=480;c.height=640;const ctx=c.getContext('2d');ctx.fillStyle='#f7efe0';ctx.fillRect(0,0,480,640);ctx.strokeStyle='#534538';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(80,100);ctx.bezierCurveTo(180,120,250,60,330,110);ctx.lineTo(390,580);ctx.lineTo(70,580);ctx.closePath();ctx.stroke();return c.toDataURL('image/png').split(',')[1];});
+await page.locator('#backgroundFile').setInputFiles({name:'patron-referencia.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await page.locator('#drawing image').waitFor();await saved();let p=await read();assert.equal(p.layers.length,2);assert.ok(p.layers[0].image.src.startsWith('data:image/'));assert.equal(p.activeLayerId,p.layers[0].id);
+await page.getByLabel('Imagen width',{exact:true}).fill('45');await saved();p=await read();assert.equal(p.layers[0].image.width,45);assert.equal(p.layers[0].image.height,60);
+const from=await position(3,3),to=await position(5,5);await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:5});await page.mouse.up();await saved();assert.ok((await read()).layers[0].image.x!==0);await tap('undo');await saved();assert.equal((await read()).layers[0].image.x,0);
+await page.getByRole('button',{name:'Bloquear capa patron-referencia.png',exact:true}).click();assert.ok(await page.getByLabel('Imagen width',{exact:true}).isDisabled());
+await page.getByRole('button',{name:'Ocultar capa patron-referencia.png',exact:true}).click();assert.equal(await page.locator('#drawing image').count(),0);await page.getByRole('button',{name:'Mostrar capa patron-referencia.png',exact:true}).click();
+await page.locator('[data-tool="line"]').click();assert.ok((await page.locator('#toolHelp').innerText()).includes('Selecciona una capa'));await tap('addLayer');await saved();p=await read();const drawingId=p.activeLayerId;assert.equal(p.layers.length,3);
+await click(4,8);assert.ok((await page.locator('#toolHelp').innerText()).includes('2 ·'));await click(10,15);await saved();assert.equal((await read()).annotations[0].layerId,drawingId);
+await page.locator('[data-tool="curve"]').click();await click(10,15);await click(12,22);assert.ok((await page.locator('#toolHelp').innerText()).includes('3 ·'));await page.keyboard.press('Escape');assert.ok((await page.locator('#toolHelp').innerText()).includes('1 ·'));
+await page.locator('[data-tool="pen"]').click();const a=await position(4,16),b=await position(10,24);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:12});await page.mouse.up();await saved();p=await read();assert.equal(p.annotations.at(-1).type,'stroke');assert.ok(p.annotations.at(-1).points.length>3);await tap('undo');await saved();assert.equal((await read()).annotations.length,1);await tap('redo');await saved();assert.equal((await read()).annotations.length,2);
+await page.getByRole('button',{name:'Bloquear capa Trazado 2',exact:true}).click();await click(5,5);await click(9,9);await saved();assert.equal((await read()).annotations.length,2);await page.getByRole('button',{name:'Desbloquear capa Trazado 2',exact:true}).click();
+await page.locator('#layerOpacity').fill('35');await saved();assert.equal((await read()).layers.at(-1).opacity,.35);
+await page.getByRole('button',{name:'Bajar capa Trazado 2',exact:true}).click();await saved();assert.equal((await read()).layers[1].id,drawingId);await tap('undo');
+const download=page.waitForEvent('download');await tap('save');const d=await download;await d.saveAs('/private/tmp/patrona-v03/layers-project.json');await page.reload();await saved();assert.equal(await page.locator('#drawing image').count(),1);assert.equal((await read()).annotations.at(-1).type,'stroke');await tap('backgroundLayers');await page.screenshot({path:'/private/tmp/patrona-v03/layers-desktop.png'});
+await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/private/tmp/patrona-v03/layers-mobile.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
+console.log('PASS: upload image, proportional sizing, dragging, locking, visibility, multi-layer drawing, tool steps, Escape, freehand, undo/redo, opacity, ordering, embedded JSON, reload and mobile.');
+}finally{await browser.close();}

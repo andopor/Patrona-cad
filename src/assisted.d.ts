@@ -1,0 +1,12 @@
+import type {Point,Node,DraftingAid,Annotation} from './types';
+export type InputPreferences={pencilOnly:boolean;pressure:boolean;tilt:boolean;stabilizer:number;inkWidth:number;transformAid:boolean;scaleAid:boolean;angleStep:number;radiusPx:number;gridStep:number;vertices:boolean;midpoints:boolean;centers:boolean;edges:boolean;guides:boolean;intersections:boolean};
+export const defaultInput:InputPreferences;
+export function inputPreferences(raw?:unknown):InputPreferences;
+export function pixelScale(view:{w:number;h:number},rect:{width:number;height:number}):number;
+export function aidPivot(a:DraftingAid):{local:Point;world:Point};
+export function rotateAid(a:DraftingAid,rotation:number,step?:number):DraftingAid;
+export function transformAidGesture(a:DraftingAid,start:Point[],current:Point[],allowScale?:boolean,step?:number):DraftingAid;
+export function edgePortion(nodes:Node[],start:number,end:number):Node[];
+export function stabilizePoint(last:Point,p:Point,amount:number):Point;
+export function normalizedPressure(type:string,pressure:number):number;
+export function inkSegments(a:Annotation):{nodes:Node[];width:number}[];

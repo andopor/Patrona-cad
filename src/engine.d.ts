@@ -6,7 +6,7 @@ export function uid():string;
 export function measureErrors(m:Measures):string[];
 export function generatePiece(kind:Kind,side:'front'|'back',m:Measures,index?:number):Piece;
 export function generate(kind:Kind,m:Measures):Piece[];
-export function pathData(nodes:Node[]):string;
+export function pathData(nodes:Node[],closed?:boolean):string;
 export function points(p:Piece):Point[];
 export function localBounds(p:Piece):{minX:number;minY:number;maxX:number;maxY:number};
 export function bounds(p:Piece[]):ReturnType<typeof localBounds>;
@@ -18,3 +18,6 @@ export function stats(p:Piece):ReturnType<typeof localBounds>&{area:number;perim
 export function validation(p:Project):{ok:boolean;errors:string[];warnings:string[]};
 export function newProject():Project;
 export function parseProject(text:string):Project;
+
+export function layerFor(s:Project,obj:{layerId?:string}):import('./types').Layer;
+export function exportProject(s:Project):Project;

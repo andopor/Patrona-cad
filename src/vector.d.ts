@@ -1,0 +1,16 @@
+import type {Project,Point,Node,Annotation,Piece} from './types';
+export function lerp(a:Point,b:Point,t:number):Point;
+export function annotationNodes(a:Annotation):Node[];
+export type Vector={outline:Node[];closed:boolean;x:number;y:number;rotation:number;mirror:boolean;locked:boolean;visible:boolean;layerId:string;name:string;annotation:number;piece?:Piece};
+export function getVector(s:Project,id:string):Vector|null;
+export function writeVector(s:Project,id:string,outline:Node[],closed?:boolean):void;
+export function vectorPiece(outline:Node[],layerId:string):Piece;
+export function localPoint(v:Vector,p:Point):Point;
+export function segmentPoint(nodes:Node[],i:number,t:number):Point;
+export function nearestSegment(nodes:Node[],p:Point):{index:number;t:number;distance:number};
+export function splitSegment(nodes:Node[],i:number,t?:number):Node[];
+export function convertSegment(nodes:Node[],i:number,type:'L'|'C'):Node[];
+export function removeNode(nodes:Node[],i:number,closed:boolean):Node[];
+export function moveNode(nodes:Node[],i:number,p:Point,closed:boolean):Node[];
+export function moveHandle(nodes:Node[],i:number,c:'c1'|'c2',p:Point,closed:boolean):Node[];
+export function nodeMode(nodes:Node[],i:number,mode:'corner'|'smooth'|'symmetric',closed:boolean):Node[];
